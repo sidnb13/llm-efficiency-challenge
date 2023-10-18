@@ -5,7 +5,7 @@ from typing import Callable, Dict, Literal, Optional
 
 import yaml
 from peft import LoraConfig as LoraConfig_
-from peft import TaskType
+from peft import PeftType, TaskType
 
 DEFAULT_SYSTEM_PROMPT = """ Below is an instruction that describes a task, paired with an input that provides further context.
 Write a response that appropriately completes the request.
@@ -27,9 +27,11 @@ def load_from_yaml(path: str | os.PathLike) -> Dict[str, Callable]:
 class LoraConfig(LoraConfig_):
     path: InitVar[str] = None
     name: InitVar[str] = "default"
-    task_type = TaskType.CAUSAL_LM
 
     def __post_init__(self, path: Optional[str], name: Optional[str]):
+        self.task_type = TaskType.CAUSAL_LM
+        self.peft_type = PeftType.LORA
+        
         if not path:
             return
 
@@ -74,6 +76,7 @@ class TrainingConfig:
     seed: int = 42
     use_flash_attn: bool = True
     gradient_checkpointing_enabled: bool = True
+    neftune_noise_alpha: int = 5
 
     hf_model: str = "mistralai/Mistral-7B-v0.1"
     bits: Literal[4, 8, -1] = -1

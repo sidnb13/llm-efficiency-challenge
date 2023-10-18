@@ -4038,14 +4038,12 @@ tutorials = ["matplotlib", "pandas", "tabulate"]
 
 [[package]]
 name = "trl"
-version = "0.7.2"
-description = "A Pytorch implementation of Proximal Policy Optimization for transfomer language models."
+version = "0.7.3.dev0"
+description = ""
 optional = false
 python-versions = ">=3.7"
-files = [
-    {file = "trl-0.7.2-py3-none-any.whl", hash = "sha256:82887f222ec9b67a55ad6096491ede5a64110b4ee41da19a2e80b4c53bf6564e"},
-    {file = "trl-0.7.2.tar.gz", hash = "sha256:93a2a7923e491f725a09d8048b27602b9165b7535d01f580a01ef49c98c5a5d6"},
-]
+files = []
+develop = false
 
 [package.dependencies]
 accelerate = "*"
@@ -4058,11 +4056,16 @@ tyro = ">=0.5.7"
 [package.extras]
 benchmark = ["deepspeed", "ghapi", "openrlbenchmark (==0.2.1a5)", "requests", "wandb"]
 deepspeed = ["deepspeed (>=0.9.5)"]
-dev = ["accelerate", "bitsandbytes (>=0.41.0)", "deepspeed", "deepspeed (>=0.9.5)", "diffusers (>=0.18.0)", "ghapi", "openrlbenchmark (==0.2.1a5)", "parameterized", "peft (>=0.4.0)", "pytest", "pytest-xdist", "requests", "wandb"]
 diffusers = ["diffusers (>=0.18.0)"]
 peft = ["peft (>=0.4.0)"]
 quantization = ["bitsandbytes (>=0.41.0)"]
 test = ["accelerate", "diffusers (>=0.18.0)", "parameterized", "peft (>=0.4.0)", "pytest", "pytest-xdist"]
+
+[package.source]
+type = "git"
+url = "https://github.com/huggingface/trl"
+reference = "HEAD"
+resolved_reference = "01e4ad0009fdbb8bde4b6f267346a139293dcdb4"
 
 [[package]]
 name = "types-python-dateutil"
@@ -4750,4 +4753,4 @@ multidict = ">=4.0"
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "03b8934e84d2e5df15f87d8245ee0039ca88f6c946bba8eec99bc9df332b903b"
+content-hash = "43d850a02e7b5e9027bfd1a00ec2202eafc4c73d5fa9f7142844c7eb40f13ffe"

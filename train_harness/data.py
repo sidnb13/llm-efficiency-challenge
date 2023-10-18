@@ -4,7 +4,7 @@ from itertools import chain
 from os import PathLike
 from typing import Dict
 
-from datasets import DatasetDict, load_dataset
+from datasets import Dataset, DatasetDict, load_dataset
 from transformers import AutoTokenizer, default_data_collator
 
 from train_harness.config import DataConfig
@@ -32,9 +32,11 @@ class InstructionDataset:
         dataset_name: str | PathLike,
         tokenizer: str,
         debug: bool = False,
+        using_sft: bool = True,
     ):
         self.config = dataset_config
         self.debug = debug
+        self.using_sft = using_sft
         self.tokenizer = AutoTokenizer.from_pretrained(tokenizer)
         if not os.path.exists(dataset_name):
             self.raw_dataset = load_dataset(dataset_name, cache_dir="data")
@@ -57,19 +59,25 @@ class InstructionDataset:
             desc="Processing dataset",
             load_from_cache_file=not self.debug,
         )
-        dataset = dataset.map(
-            self.pack_seqs,
-            batched=True,
-            batch_size=self.config.proc_bsz,
-            desc="Packing sequences",
-            load_from_cache_file=not self.debug,
-        )
-
+        if not self.using_sft:
+            dataset = dataset.map(
+                self.pack_seqs,
+                batched=True,
+                batch_size=self.config.proc_bsz,
+                desc="Packing sequences",
+                load_from_cache_file=not self.debug,
+            )
         self.processed_dataset = dataset
 
-        if self.config.test_split > 0 and not isinstance(
-            self.processed_dataset, DatasetDict
+        if self.config.test_split > 0 and (
+            (
+                isinstance(self.processed_dataset, DatasetDict)
+                and "test" not in self.processed_dataset
+            )
+            or isinstance(self.processed_dataset, Dataset)
         ):
+            if "train" in self.processed_dataset:
+                self.processed_dataset = self.processed_dataset.pop("train")
             ds = self.processed_dataset.train_test_split(
                 test_size=self.config.test_split
             )
@@ -112,29 +120,36 @@ class InstructionDataset:
             prompt = getattr(PromptTemplates, self.config.template).format(
                 instruction=instruction, input=input
             )
-            example = self.tokenizer(
-                prompt + output,
-                truncation=True,
-                max_length=self.config.max_length,
-                return_tensors="pt",
-                return_attention_mask=True,
-            )
-            prompt = self.tokenizer(
-                prompt,
-                truncation=True,
-                max_length=self.config.max_length,
-                return_tensors="pt",
-                return_attention_mask=False,
-            )
-            label = copy.deepcopy(example["input_ids"].squeeze())
-            label[: len(prompt)] = IGNORE_IDX
+            example = prompt + input
 
-            labels.append(label)
-            examples.append(example["input_ids"].squeeze())
-            attn_masks.append(example["attention_mask"].squeeze())
+            if not self.using_sft:
+                example = self.tokenizer(
+                    prompt + output,
+                    truncation=True,
+                    max_length=self.config.max_length,
+                    return_tensors="pt",
+                    return_attention_mask=True,
+                )
+                prompt = self.tokenizer(
+                    prompt,
+                    truncation=True,
+                    max_length=self.config.max_length,
+                    return_tensors="pt",
+                    return_attention_mask=False,
+                )
+                label = copy.deepcopy(example["input_ids"].squeeze())
+                label[: len(prompt)] = IGNORE_IDX
 
-        return {
-            "input_ids": examples,
-            "labels": labels,
-            "attention_mask": attn_masks,
-        }
+                labels.append(label)
+                examples.append(example["input_ids"].squeeze())
+                attn_masks.append(example["attention_mask"].squeeze())
+            else:
+                examples.append(example)
+
+        if not self.using_sft:
+            return {
+                "input_ids": examples,
+                "labels": labels,
+                "attention_mask": attn_masks,
+            }
+        return examples
