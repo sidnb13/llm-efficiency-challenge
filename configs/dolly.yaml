@@ -1,0 +1,24 @@
+lora_config:
+    name: dolly-15k
+    r: 16
+    lora_alpha: 64
+    target_modules:
+        [
+            'v_proj',
+            'o_proj',
+            'down_proj',
+            'gate_proj',
+            'up_proj',
+            'q_proj',
+            'k_proj'
+        ]
+data_config:
+    max_length: 2048
+    template: "alpaca_input"
+    instruction_column: "instruction"
+    input_column: "context"
+    output_column: "response"
+    test_split: 0.15
+training_config:
+    epochs: 2
+    warmup_ratio: 0.3

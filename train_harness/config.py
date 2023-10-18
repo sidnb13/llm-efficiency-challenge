@@ -1,8 +1,9 @@
 import json
 import os
 from dataclasses import InitVar, dataclass
-from typing import Literal, Optional
+from typing import Callable, Dict, Literal, Optional
 
+import yaml
 from peft import LoraConfig as LoraConfig_
 from peft import TaskType
 
@@ -11,8 +12,15 @@ Write a response that appropriately completes the request.
 """
 
 
-def load_from_yaml(path: str | os.PathLike):
-    pass
+def load_from_yaml(path: str | os.PathLike) -> Dict[str, Callable]:
+    class_dict = {}
+    with open(path, "r") as f:
+        cfg_dict = yaml.safe_load(f)
+    for key, cfg in cfg_dict.items():
+        if key in _CFG_REGISTRY:
+            class_dict[key] = _CFG_REGISTRY[key](**cfg)
+
+    return class_dict
 
 
 @dataclass
@@ -59,15 +67,23 @@ class TrainingConfig:
     grad_accum_steps: int = 4
     epochs: int = 1
     peak_lr: float = 3e-4
-    optimizer: str = "AdamW"
     weight_decay: float = 0.0
     gradient_clip_val: float = 1.0
     warmup_steps: Optional[int] = None
     warmup_ratio: Optional[float] = None
     seed: int = 42
     use_flash_attn: bool = True
-    gradient_checkpointing_enabled: bool = False
+    gradient_checkpointing_enabled: bool = True
 
     hf_model: str = "mistralai/Mistral-7B-v0.1"
-    device: int = 0
     bits: Literal[4, 8, -1] = -1
+
+    log_steps: int = 10
+    eval_steps: int = 100
+
+
+_CFG_REGISTRY = {
+    "lora_config": LoraConfig,
+    "data_config": DataConfig,
+    "training_config": TrainingConfig,
+}

@@ -1,4 +1,3 @@
-from cgi import print_arguments
 import copy
 import os
 from itertools import chain
@@ -6,7 +5,6 @@ from os import PathLike
 from typing import Dict
 
 from datasets import DatasetDict, load_dataset
-from platformdirs import user_cache_dir
 from transformers import AutoTokenizer, default_data_collator
 
 from train_harness.config import DataConfig
