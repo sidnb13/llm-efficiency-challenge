@@ -2,9 +2,10 @@ import copy
 import os
 from itertools import chain
 from os import PathLike
-from typing import Dict
+from typing import Dict, List
 
-from datasets import Dataset, DatasetDict, load_dataset
+import torch
+from datasets import Dataset, DatasetDict, load_dataset, load_from_disk
 from transformers import AutoTokenizer, default_data_collator
 
 from train_harness.config import DataConfig
@@ -14,13 +15,13 @@ class PromptTemplates:
     alpaca_input: str = (
         "Below is an instruction that describes a task, paired with an input that provides further context. "
         "Write a response that appropriately completes the request.\n\n"
-        "### Instruction:\n{instruction}\n\n### Input:\n{input}\n\n### Response:"
+        "### Instruction:\n{instruction}\n\n### Input:\n{input}\n\n### Response:\n"
     )
     alpaca_no_input: str = (
         (
             "Below is an instruction that describes a task. "
             "Write a response that appropriately completes the request.\n\n"
-            "### Instruction:\n{instruction}\n\n### Response:"
+            "### Instruction:\n{instruction}\n\n### Response:\n"
         ),
     )
 
@@ -32,23 +33,34 @@ class InstructionDataset:
         dataset_name: str | PathLike,
         tokenizer: str,
         debug: bool = False,
-        using_sft: bool = True,
+        pad_last: bool = True,
+        packing: bool = True,
     ):
         self.config = dataset_config
         self.debug = debug
-        self.using_sft = using_sft
+        self.pad_last = pad_last
+        self.packing = packing
         self.tokenizer = AutoTokenizer.from_pretrained(tokenizer)
-        if not os.path.exists(dataset_name):
-            self.raw_dataset = load_dataset(dataset_name, cache_dir="data")
-        else:
-            assert dataset_name.endswith(".jsonl")
-            self.raw_dataset = load_dataset(
-                "json", data_files=dataset_name, cache_dir="data"
-            )
-        if "train" not in self.raw_dataset:
-            self.raw_dataset = DatasetDict({"train": self.raw_dataset})
+        self.tokenizer.padding_side = "right"
+        self.tokenizer.pad_token_id = self.tokenizer.eos_token_id
+        self.raw_dataset = self._load_dataset(dataset_name)
         # else Trainer defaults to padding
         self.collator = default_data_collator
+
+    @staticmethod
+    def _load_dataset(dataset_name: str | PathLike):
+        candidate_path = os.path.join(os.curdir, dataset_name)
+        if not os.path.exists(candidate_path):
+            ds = load_dataset(dataset_name, cache_dir="data")
+        else:
+            if os.path.isdir(candidate_path):
+                ds = load_from_disk(candidate_path)
+            else:
+                assert dataset_name.endswith(".jsonl")
+                ds = load_dataset("json", data_files=dataset_name, cache_dir="data")
+        if "train" not in ds:
+            return DatasetDict({"train": ds})
+        return ds
 
     def process_dataset(self):
         dataset = self.raw_dataset.map(
@@ -59,7 +71,7 @@ class InstructionDataset:
             desc="Processing dataset",
             load_from_cache_file=not self.debug,
         )
-        if not self.using_sft:
+        if self.packing:
             dataset = dataset.map(
                 self.pack_seqs,
                 batched=True,
@@ -95,10 +107,22 @@ class InstructionDataset:
         total_length = len(concatenated_examples[list(batch.keys())[0]])
         # We drop the small remainder, and if the total_length < block_size  we exclude this batch and return an empty dict.
         # We could add padding if the model supported it instead of this drop, you can customize this part to your needs.
-        total_length = (total_length // block_size) * block_size
+        if not self.pad_last:
+            total_length = (total_length // block_size) * block_size
+
+        def _pad(x: torch.Tensor | List[int]):
+            if not self.pad_last:
+                return x
+
+            if isinstance(x, torch.Tensor):
+                return torch.nn.functional.pad(
+                    x, (0, block_size - len(x)), value=self.tokenizer.pad_token_id
+                )
+            return x + [self.tokenizer.pad_token_id] * (block_size - len(x))
+
         # Split by chunks of max_len.
         result = {
-            k: [t[i : i + block_size] for i in range(0, total_length, block_size)]
+            k: [_pad(t[i : i + block_size]) for i in range(0, total_length, block_size)]
             for k, t in concatenated_examples.items()
         }
         result["labels"] = result["input_ids"].copy()
@@ -120,36 +144,31 @@ class InstructionDataset:
             prompt = getattr(PromptTemplates, self.config.template).format(
                 instruction=instruction, input=input
             )
-            example = prompt + input
+            example = prompt + output
 
-            if not self.using_sft:
-                example = self.tokenizer(
-                    prompt + output,
-                    truncation=True,
-                    max_length=self.config.max_length,
-                    return_tensors="pt",
-                    return_attention_mask=True,
-                )
-                prompt = self.tokenizer(
-                    prompt,
-                    truncation=True,
-                    max_length=self.config.max_length,
-                    return_tensors="pt",
-                    return_attention_mask=False,
-                )
-                label = copy.deepcopy(example["input_ids"].squeeze())
-                label[: len(prompt)] = IGNORE_IDX
+            example = self.tokenizer(
+                prompt + output,
+                truncation=True,
+                max_length=self.config.max_length,
+                return_tensors="pt",
+                return_attention_mask=True,
+            )
+            prompt = self.tokenizer(
+                prompt,
+                truncation=True,
+                max_length=self.config.max_length,
+                return_tensors="pt",
+                return_attention_mask=False,
+            )
+            label = copy.deepcopy(example["input_ids"].squeeze())
+            label[: len(prompt)] = IGNORE_IDX
 
-                labels.append(label)
-                examples.append(example["input_ids"].squeeze())
-                attn_masks.append(example["attention_mask"].squeeze())
-            else:
-                examples.append(example)
+            labels.append(label)
+            examples.append(example["input_ids"].squeeze())
+            attn_masks.append(example["attention_mask"].squeeze())
 
-        if not self.using_sft:
-            return {
-                "input_ids": examples,
-                "labels": labels,
-                "attention_mask": attn_masks,
-            }
-        return examples
+        return {
+            "input_ids": examples,
+            "labels": labels,
+            "attention_mask": attn_masks,
+        }

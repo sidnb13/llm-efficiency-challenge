@@ -1,5 +1,28 @@
 # NeurIPS 2023 LLM Efficiency Challenge Attempt
 
+# Setup and Usage
+
+### Bitsandbytes
+
+```shell
+git clone https://github.com/automorphic-ai/bitsandbytes
+cd bitsandbytes
+CUDA_VERSION=117 make cuda11x
+python setup.py install
+python -m bitsandbytes
+cd ..
+```
+
+Sample training command:
+```shell
+CONFIG=configs/dolly.yaml python train.py --config=config.py --use_wandb --dataset_path="databricks/databricks-dolly-15k"
+```
+
+Inference:
+```shell
+TBD
+```
+
 ## Resources available
 
 https://lightning.ai/pages/community/tutorial/neurips2023-llm-efficiency-guide/#toc12

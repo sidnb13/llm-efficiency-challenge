@@ -68,11 +68,12 @@ class TrainingConfig:
     batch_size: int = 16
     grad_accum_steps: int = 4
     epochs: int = 1
+    steps: int = -1
     peak_lr: float = 3e-4
     weight_decay: float = 0.0
     gradient_clip_val: float = 1.0
-    warmup_steps: Optional[int] = None
-    warmup_ratio: Optional[float] = None
+    warmup_steps: Optional[int] = 0
+    warmup_ratio: Optional[float] = 0.3
     seed: int = 42
     use_flash_attn: bool = True
     gradient_checkpointing_enabled: bool = True
@@ -83,6 +84,7 @@ class TrainingConfig:
 
     log_steps: int = 10
     eval_steps: int = 100
+    do_eval: bool = True
 
 
 _CFG_REGISTRY = {

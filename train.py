@@ -1,4 +1,3 @@
-import os
 from absl import app, flags
 from ml_collections import config_flags
 
@@ -83,7 +82,6 @@ def main(argv):
         wandb_notes=WANDB_NOTES.value,
         checkpt_path=CHECKPT_PATH.value,
         run_id=RUN_ID.value,
-        device=os.environ.get("LOCAL_RANK", 0),
     )
 
 

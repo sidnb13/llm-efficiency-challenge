@@ -1,5 +1,5 @@
 lora_config:
-    name: dolly-15k
+    name: lima-st
     r: 256
     lora_alpha: 512
     target_modules:
@@ -15,12 +15,11 @@ lora_config:
 data_config:
     max_length: 2048
     template: 'alpaca_input'
-    instruction_column: 'instruction'
-    input_column: 'context'
-    output_column: 'response'
-    test_split: 0.15
+    input_column: "input"
+    output_column: "output"
+    test_split: 0.1
 training_config:
-    epochs: 1
+    epochs: 2
     warmup_ratio: 0.3
     batch_size: 8
     grad_accum_steps: 8

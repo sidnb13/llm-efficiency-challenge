@@ -4065,7 +4065,7 @@ test = ["accelerate", "diffusers (>=0.18.0)", "parameterized", "peft (>=0.4.0)",
 type = "git"
 url = "https://github.com/huggingface/trl"
 reference = "HEAD"
-resolved_reference = "01e4ad0009fdbb8bde4b6f267346a139293dcdb4"
+resolved_reference = "0a5aee7d99cc78d3923261e5ba19934c58672b14"
 
 [[package]]
 name = "types-python-dateutil"
