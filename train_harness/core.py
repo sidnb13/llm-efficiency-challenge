@@ -113,7 +113,6 @@ class NEFTTrainer(Trainer):
         # all credits to: https://discuss.pytorch.org/t/how-can-i-replace-the-forward-method-of-a-predefined-torchvision-model-with-my-customized-forward-function/54224/11
         bound_method = neftune_forward.__get__(embeddings, embeddings.__class__)
         setattr(embeddings, "forward", bound_method)
-
         # embeddings.forward = neftune_forward
         setattr(embeddings, "_old_forward", old_forward)
 

@@ -17,6 +17,7 @@ wandb = "^0.15.12"
 absl-py = "^2.0.0"
 ml-collections = "^0.1.1"
 trl = {git = "https://github.com/huggingface/trl"}
+lm-eval = {path = "lm-evaluation-harness"}
 
 [[tool.poetry.source]]
 name = "torchcu118"

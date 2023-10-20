@@ -1,3 +1,6 @@
 [submodule "bitsandbytes"]
 	path = bitsandbytes
 	url = https://github.com/automorphic-ai/bitsandbytes
+[submodule "lm-evaluation-harness"]
+	path = lm-evaluation-harness
+	url = https://github.com/EleutherAI/lm-evaluation-harness
