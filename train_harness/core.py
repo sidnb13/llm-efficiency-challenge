@@ -6,7 +6,7 @@ from typing import Callable, Dict, List, Optional, Tuple, Union
 
 import torch
 from datasets import Dataset
-from peft import PeftModel, PeftConfig, get_peft_model, prepare_model_for_kbit_training
+from peft import PeftModel, get_peft_model, prepare_model_for_kbit_training
 from torch import nn
 from transformers import (
     DataCollator,
@@ -131,7 +131,7 @@ class NEFTTrainer(Trainer):
             elif isinstance(self.model, PeftModel):
                 embeddings = self.model.base_model.get_input_embeddings()
 
-            if hasattr(embeddings, "_trl_old_forward"):
+            if hasattr(embeddings, "_old_forward"):
                 embeddings.forward = getattr(embeddings, "_old_forward")
                 setattr(embeddings, "_old_forward", None)
                 setattr(embeddings, "neftune_noise_alpha", None)
