@@ -1,5 +1,8 @@
-python main.py \
-    --model mistral-lima \
+python lm-evaluation-harness/main.py \
+    --model hf-causal-experimental \
     --model_args pretrained=mistralai/Mistral-7B-v0.1,peft=/home/sidnbaskaran/llm-efficiency-challenge/checkpoints/dummy-7rv119oc \
-    --tasks openbookqa,arc_easy,winogrande,hellaswag,arc_challenge,piqa,boolq \
-    --device cuda:0
+    --tasks hendrycksTest-abstract_algebra,hendrycksTest-college_chemistry,hendrycksTest-computer_security,hendrycksTest-econometrics,hendrycksTest-us_foreign_policy \
+    --device cuda:0 \
+    --batch_size auto \
+    --output_base_path results \
+    # --limit 0.2

@@ -1,3 +1,4 @@
+import copy
 import os
 from dataclasses import asdict
 from functools import wraps
@@ -5,7 +6,7 @@ from os import PathLike
 from typing import Callable, Dict, List, Optional, Tuple, Union
 
 import torch
-from datasets import Dataset
+from datasets import Dataset, concatenate_datasets
 from peft import PeftModel, get_peft_model, prepare_model_for_kbit_training
 from torch import nn
 from transformers import (
@@ -175,7 +176,7 @@ def train(
     training_config: TrainingConfig,
     data_config: DataConfig,
     lora_config: LoraConfig,
-    dataset_path: str | PathLike,
+    dataset_path: List[str | PathLike],
     wandb_project: str,
     wandb_entity: str,
     wandb_enabled: bool,
@@ -184,14 +185,58 @@ def train(
     wandb_notes: Optional[str] = None,
     checkpt_path: Optional[str] = None,
     run_id: Optional[str] = None,
+    instruction_cols: Optional[List[str]] = None,
+    input_cols: Optional[List[str]] = None,
+    output_cols: Optional[List[str]] = None,
 ):
     # setup model
     peft_model = create_load_peft_model(training_config, lora_config, inference=False)
-    # setup data
-    instruction_data = InstructionDataset(
-        data_config, dataset_path, training_config.hf_model
-    )
-    instruction_data.process_dataset()
+
+    if len(dataset_path) == 1:
+        # setup data
+        instruction_data = InstructionDataset(
+            data_config, dataset_path, training_config.hf_model
+        )
+        instruction_data.process_dataset()
+        train_ds = instruction_data.get_dataset("train")
+        test_ds = instruction_data.get_dataset("test")
+    else:
+        # TODO mixed dataset capability
+        flattened_datasets = []
+        if instruction_cols and len(instruction_cols) < len(dataset_path):
+            instruction_cols = instruction_cols[0] * len(dataset_path)
+        if input_cols and len(input_cols) < len(dataset_path):
+            input_cols = input_cols[0] * len(dataset_path)
+        if output_cols and len(output_cols) < len(dataset_path):
+            output_cols = output_cols[0] * len(dataset_path)
+
+        for i, ds_path_name in enumerate(dataset_path):
+            conf = copy.deepcopy(data_config)
+            if instruction_cols:
+                conf.instruction_column = instruction_cols[i]
+            if input_cols:
+                conf.input_column = input_cols[i]
+            if output_cols:
+                conf.output_column = output_cols[i]
+            instruction_data = InstructionDataset(
+                data_config, ds_path_name, training_config.hf_model
+            )
+
+            instruction_data.process_dataset()
+            flattened_datasets.append(
+                concatenate_datasets(
+                    [
+                        instruction_data.get_dataset("train"),
+                        instruction_data.get_dataset("test"),
+                    ]
+                )
+            )
+        mixed_ds = concatenate_datasets(flattened_datasets)
+        mixed_ds = mixed_ds.train_test_split(
+            test_size=data_config.test_split, shuffle=True
+        )
+        train_ds, test_ds = mixed_ds["train"], mixed_ds["test"]
+
     # training
     _do_eval = training_config.do_eval and data_config.test_split > 0
     training_args = TrainingArguments(
@@ -223,8 +268,8 @@ def train(
         model=peft_model,
         args=training_args,
         data_collator=instruction_data.collator,
-        train_dataset=instruction_data.get_dataset("train"),
-        eval_dataset=instruction_data.get_dataset("test") if _do_eval else None,
+        train_dataset=train_ds,
+        eval_dataset=test_ds if _do_eval else None,
         neftune_noise_alpha=training_config.neftune_noise_alpha,
     )
 
@@ -247,4 +292,6 @@ def train(
         },
     ) as run:
         trainer.train(resume_from_checkpoint=checkpt_path)
-        trainer.save_model(os.path.join("checkpoints", run.name))
+        trainer.save_model(
+            os.path.join("checkpoints", f"{run.name}_{dataset_path.split('/')[-1]}")
+        )

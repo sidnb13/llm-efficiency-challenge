@@ -4,6 +4,7 @@ from itertools import chain
 from os import PathLike
 from typing import Dict, List
 
+import psutil
 import torch
 from datasets import Dataset, DatasetDict, load_dataset, load_from_disk
 from transformers import AutoTokenizer, default_data_collator
@@ -24,6 +25,7 @@ class PromptTemplates:
             "### Instruction:\n{instruction}\n\n### Response:\n"
         ),
     )
+    chatml: str = "<|im_start|>{input_role}\n{message}\n<|im_end|>{output_role}\n"
 
 
 class InstructionDataset:
@@ -70,6 +72,7 @@ class InstructionDataset:
             remove_columns=self.raw_dataset["train"].column_names,
             desc="Processing dataset",
             load_from_cache_file=not self.debug,
+            num_proc=psutil.cpu_count(),
         )
         if self.packing:
             dataset = dataset.map(
@@ -78,6 +81,7 @@ class InstructionDataset:
                 batch_size=self.config.proc_bsz,
                 desc="Packing sequences",
                 load_from_cache_file=not self.debug,
+                num_proc=psutil.cpu_count(),
             )
         self.processed_dataset = dataset
 
@@ -132,14 +136,15 @@ class InstructionDataset:
         IGNORE_IDX = -100
 
         labels, examples, attn_masks = [], [], []
+        bsz = len(batch[list(batch.keys())[0]])
 
         for instruction, input, output in zip(
             batch.get(
                 self.config.instruction_column,
-                [self.config.system_prompt] * len(batch[self.config.input_column]),
+                [self.config.system_prompt] * bsz,
             ),
-            batch[self.config.input_column],
-            batch[self.config.output_column],
+            batch.get(self.config.input_column, [""] * bsz),
+            batch.get(self.config.output_column, ["output"] * bsz),
         ):
             prompt = getattr(PromptTemplates, self.config.template).format(
                 instruction=instruction, input=input

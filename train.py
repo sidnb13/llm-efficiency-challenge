@@ -47,7 +47,7 @@ WANDB_TAGS = flags.DEFINE_list(
     "Tags for wandb.",
 )
 
-DATASET_PATH = flags.DEFINE_string(
+DATASET_PATH = flags.DEFINE_list(
     "dataset_path",
     None,
     "Path to dataset.",
@@ -63,6 +63,21 @@ CHECKPT_PATH = flags.DEFINE_string(
     "checkpt_path",
     None,
     "Path to checkpoint.",
+)
+INSTRUCTION_COLS = flags.DEFINE_list(
+    "instruction_cols",
+    None,
+    "Instruction columns.",
+)
+INPUT_COLS = flags.DEFINE_list(
+    "input_cols",
+    None,
+    "Input columns.",
+)
+OUTPUT_COLS = flags.DEFINE_list(
+    "output_cols",
+    None,
+    "Output columns.",
 )
 
 
@@ -82,6 +97,9 @@ def main(argv):
         wandb_notes=WANDB_NOTES.value,
         checkpt_path=CHECKPT_PATH.value,
         run_id=RUN_ID.value,
+        input_cols=INPUT_COLS.value,
+        output_cols=OUTPUT_COLS.value,
+        instruction_cols=INSTRUCTION_COLS.value,
     )
 
 

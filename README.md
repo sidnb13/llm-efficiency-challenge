@@ -60,5 +60,5 @@ Regular LoRA fine tuning, optimal ranks seem to be `r/alpha=256/512`. Use Mistra
 ### Datasets
 
 -   https://huggingface.co/datasets/garage-bAInd/Open-Platypus
--   https://huggingface.co/datasets/OpenAssistant/oasst1
+-   https://huggingface.co/datasets/OpenAssistant/oasst1 --> Guanaco 10k?
 -   https://huggingface.co/datasets/GAIR/lima
