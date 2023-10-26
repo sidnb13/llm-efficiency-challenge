@@ -122,17 +122,6 @@ class NEFTTrainer(Trainer):
 
         return model
     
-    # Override the training step to log memory at each step: 
-
-    def training_step(self, model: nn.Module, inputs: Dict[str, Union[torch.Tensor, Any]]) -> torch.Tensor:
-
-        loss = super().training_step(model, inputs)
-
-        # Log GPU memory
-        total_memory = memory_allocated()
-
-
-
     # ensure train method retains the metadata of 'Trainer.train'
     @wraps(Trainer.train)
     def train(self, *args, **kwargs):
@@ -186,17 +175,24 @@ def create_load_peft_model(
 
     return peft_model
 
-
-
 class GPUMemoryLoggerCallback(TrainerCallback):
-    def on_log(self, args, state: TrainerState, control: TrainerControl, **kwargs):
-        # Only log if we're on a CUDA device and it's a logging step
+    def on_log(self, args, state: TrainerState, control: TrainerControl, model, optimizer, **kwargs):
         if torch.cuda.is_available() and state.global_step % args.logging_steps == 0:
-            memory_allocated = torch.cuda.memory_allocated() / (1024 * 1024)  # Convert to MB
-            memory_cached = torch.cuda.memory_cached() / (1024 * 1024)  # Convert to MB
-            logs = {"gpu_memory_allocated_mb": memory_allocated, "gpu_memory_cached_mb": memory_cached}
+            total_memory = torch.cuda.memory_allocated()
+            
+            # Estimate memory of adapter layers
+            adapter_memory = sum(param.nelement() * param.element_size() for name, param in model.named_parameters() if 'adapter' in name)
+            
+            # Estimate memory used by optimizer state
+            optimizer_memory = sum(tensor.nelement() * tensor.element_size() for group in optimizer.param_groups for tensor in group['params'])
+            
+            logs = {
+                "gpu_memory_total_mb": total_memory / (1024 * 1024),
+                "gpu_memory_adapter_mb": adapter_memory / (1024 * 1024),
+                "gpu_memory_optimizer_mb": optimizer_memory / (1024 * 1024),
+                # minibatch memory can be computed during a forward pass, outside of this method
+            }
             self._trainer.log(logs)
-
 
 def train(
     training_config: TrainingConfig,
