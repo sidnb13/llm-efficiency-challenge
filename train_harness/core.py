@@ -3,12 +3,13 @@ import os
 from dataclasses import asdict
 from functools import wraps
 from os import PathLike
-from typing import Callable, Dict, List, Optional, Tuple, Union
+from typing import Callable, Dict, List, Optional, Tuple, Union, Any
 
 import torch
 from datasets import Dataset, concatenate_datasets
 from peft import PeftModel, get_peft_model, prepare_model_for_kbit_training
 from torch import nn
+from torch.cuda import memory_allocated, memory_cached
 from transformers import (
     DataCollator,
     EvalPrediction,
@@ -18,6 +19,8 @@ from transformers import (
     Trainer,
     TrainerCallback,
     TrainingArguments,
+    TrainerState,
+    TrainerControl,
 )
 
 import wandb
@@ -118,7 +121,19 @@ class NEFTTrainer(Trainer):
         setattr(embeddings, "_old_forward", old_forward)
 
         return model
+    
+    # Override the training step to log memory at each step: 
 
+    def training_step(self, model: nn.Module, inputs: Dict[str, Union[torch.Tensor, Any]]) -> torch.Tensor:
+
+        loss = super().training_step(model, inputs)
+
+        # Log GPU memory
+        total_memory = memory_allocated()
+
+
+
+    # ensure train method retains the metadata of 'Trainer.train'
     @wraps(Trainer.train)
     def train(self, *args, **kwargs):
         output = super().train(*args, **kwargs)
@@ -170,6 +185,17 @@ def create_load_peft_model(
         peft_model.config.use_cache = False
 
     return peft_model
+
+
+
+class GPUMemoryLoggerCallback(TrainerCallback):
+    def on_log(self, args, state: TrainerState, control: TrainerControl, **kwargs):
+        # Only log if we're on a CUDA device and it's a logging step
+        if torch.cuda.is_available() and state.global_step % args.logging_steps == 0:
+            memory_allocated = torch.cuda.memory_allocated() / (1024 * 1024)  # Convert to MB
+            memory_cached = torch.cuda.memory_cached() / (1024 * 1024)  # Convert to MB
+            logs = {"gpu_memory_allocated_mb": memory_allocated, "gpu_memory_cached_mb": memory_cached}
+            self._trainer.log(logs)
 
 
 def train(
@@ -271,6 +297,7 @@ def train(
         train_dataset=train_ds,
         eval_dataset=test_ds if _do_eval else None,
         neftune_noise_alpha=training_config.neftune_noise_alpha,
+        callbacks=[GPUMemoryLoggerCallback()],
     )
 
     if run_id:
