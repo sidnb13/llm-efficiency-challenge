@@ -27,7 +27,7 @@ class PromptTemplates:
     )
     chatml: str = "<|im_start|>{input_role}\n{message}\n<|im_end|>{output_role}\n"
 
-
+# Nice utility class that packs a dataset for us, handles padding and generates attention masks. 
 class InstructionDataset:
     def __init__(
         self,

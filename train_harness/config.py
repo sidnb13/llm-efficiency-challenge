@@ -28,6 +28,9 @@ class LoraConfig(LoraConfig_):
     path: InitVar[str] = None
     name: InitVar[str] = "default"
 
+    # run right after initialization, gives the user the option to specify a 
+    # custom configuration path and name. If a path is provided, the method reads
+    # the configuration from this path and updates the instance attributes accordingly.
     def __post_init__(self, path: Optional[str], name: Optional[str]):
         self.task_type = TaskType.CAUSAL_LM
         self.peft_type = PeftType.LORA
