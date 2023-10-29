@@ -174,8 +174,7 @@ def create_load_peft_model(
         peft_model.config.use_cache = False
 
     return peft_model
-
-class GPUMemoryLoggerCallback(TrainerCallback):
+ 
     def on_log(self, args, state: TrainerState, control: TrainerControl, model, optimizer, **kwargs):
         if torch.cuda.is_available() and state.global_step % args.logging_steps == 0:
             total_memory = torch.cuda.memory_allocated()
