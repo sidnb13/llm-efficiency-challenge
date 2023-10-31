@@ -212,11 +212,12 @@ def train(
 ):
     # setup model
     peft_model = create_load_peft_model(training_config, lora_config, inference=False)
-
+    
+    print(f"\n core,py line 195 dataset_path: {dataset_path}\n")
     if len(dataset_path) == 1:
         # setup data
         instruction_data = InstructionDataset(
-            data_config, dataset_path, training_config.hf_model
+            data_config, dataset_path[0], training_config.hf_model
         )
         instruction_data.process_dataset()
         train_ds = instruction_data.get_dataset("train")
@@ -315,5 +316,5 @@ def train(
     ) as run:
         trainer.train(resume_from_checkpoint=checkpt_path)
         trainer.save_model(
-            os.path.join("checkpoints", f"{run.name}_{dataset_path.split('/')[-1]}")
+            os.path.join("checkpoints", f"{run.name}_{dataset_path[0].split('/')[-1]}")
         )

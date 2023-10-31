@@ -1,7 +1,7 @@
 from absl import app, flags
 from ml_collections import config_flags
 
-from train_harness import train
+from train_harness.core import train
 
 # define configuration file
 _CONFIG = config_flags.DEFINE_config_file(
@@ -13,19 +13,19 @@ _CONFIG = config_flags.DEFINE_config_file(
 
 USE_WANDB = flags.DEFINE_bool(
     "use_wandb",
-    False,
+    True,
     "Whether to use wandb for logging.",
 )
 
 WANDB_PROJECT = flags.DEFINE_string(
     "wandb_project",
-    "llm-efficiency-challenge",
+    "finn-experiments",
     "Name of wandb project.",
 )
 
 WANDB_ENTITY = flags.DEFINE_string(
     "wandb_entity",
-    "sidnbaskaran",
+    "finnd",
     "Name of wandb entity.",
 )
 
@@ -49,7 +49,8 @@ WANDB_TAGS = flags.DEFINE_list(
 
 DATASET_PATH = flags.DEFINE_list(
     "dataset_path",
-    None,
+    "data/dolly-15k-packed",
+    # "data/databricks___databricks-dolly-15k/default-edf378b23813c52d/0.0.0/8bb11242116d547c741b2e8a1f18598ffdd40a1d4f2a2872c7a28b697434bc96/",
     "Path to dataset.",
 )
 
@@ -64,6 +65,7 @@ CHECKPT_PATH = flags.DEFINE_string(
     None,
     "Path to checkpoint.",
 )
+
 INSTRUCTION_COLS = flags.DEFINE_list(
     "instruction_cols",
     None,
@@ -84,6 +86,7 @@ OUTPUT_COLS = flags.DEFINE_list(
 def main(argv):
     del argv
     cfg = _CONFIG.value
+    print(f"cfg['training_config']: \n{cfg['training_config']}\n")   
     train(
         cfg["training_config"],
         cfg["data_config"],

@@ -51,7 +51,22 @@ class InstructionDataset:
 
     @staticmethod
     def _load_dataset(dataset_name: str | PathLike):
+        print(f"os.curdir: {os.curdir}")
+        print(f"os.path.exists(os.curdir): {os.path.exists(os.curdir)}")
+
         candidate_path = os.path.join(os.curdir, dataset_name)
+        absolute_path = os.path.abspath(candidate_path)
+        print(f"Absolute Path: {absolute_path}")
+        print(f"os.path.exists(absolute_path): {os.path.exists(absolute_path)}")
+
+        print(f"Current Working Directory: {os.getcwd()}")
+        print(f"os.path.exists(os.getcwd()): {os.path.exists(os.getcwd())}")
+
+        print(f"\n candidate_path: {candidate_path}\n")
+        print(f"os.path.exists(candidate_path): {os.path.exists(candidate_path)}")
+
+
+        # candidate_path = os.path.abspath(os.path.join(os.curdir, dataset_name))
         if not os.path.exists(candidate_path):
             ds = load_dataset(dataset_name, cache_dir="data")
         else:

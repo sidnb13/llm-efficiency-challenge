@@ -5,4 +5,4 @@ checkpoints/
 wandb/
 lm_cache/
 finn-automorphic-venv/
-
+venv/
