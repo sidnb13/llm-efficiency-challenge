@@ -39,8 +39,6 @@ Datasets: https://github.com/Zjh-819/LLMDataHub for good overview
 
 ## Strategy
 
-Regular LoRA fine tuning, optimal ranks seem to be `r/alpha=256/512`. Use Mistral-7B as base model.
-
 > Active learning and some tricks when dealing with large amounts of data:
 >
 > [1] https://medium.com/@timothylimyonglee/finetuning-llm-efficiently-part-1-simple-fixes-to-the-dataloader-c4eef3e9822a
