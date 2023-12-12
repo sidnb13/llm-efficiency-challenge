@@ -4,6 +4,7 @@ from ml_collections import config_dict
 
 from train_harness import load_from_yaml
 
+os.environ["CONFIG"] = "configs/dolly.yaml"
 cfg_file_path = os.environ.get("CONFIG", None)
 
 

@@ -3,12 +3,13 @@ import os
 from dataclasses import asdict
 from functools import wraps
 from os import PathLike
-from typing import Callable, Dict, List, Optional, Tuple, Union
+from typing import Callable, Dict, List, Optional, Tuple, Union, Any
 
 import torch
 from datasets import Dataset, concatenate_datasets
 from peft import PeftModel, get_peft_model, prepare_model_for_kbit_training
 from torch import nn
+from torch.cuda import memory_allocated, memory_cached
 from transformers import (
     DataCollator,
     EvalPrediction,
@@ -18,6 +19,8 @@ from transformers import (
     Trainer,
     TrainerCallback,
     TrainingArguments,
+    TrainerState,
+    TrainerControl,
 )
 
 import wandb
@@ -118,7 +121,8 @@ class NEFTTrainer(Trainer):
         setattr(embeddings, "_old_forward", old_forward)
 
         return model
-
+    
+    # ensure train method retains the metadata of 'Trainer.train'
     @wraps(Trainer.train)
     def train(self, *args, **kwargs):
         output = super().train(*args, **kwargs)
@@ -170,7 +174,24 @@ def create_load_peft_model(
         peft_model.config.use_cache = False
 
     return peft_model
-
+ 
+    def on_log(self, args, state: TrainerState, control: TrainerControl, model, optimizer, **kwargs):
+        if torch.cuda.is_available() and state.global_step % args.logging_steps == 0:
+            total_memory = torch.cuda.memory_allocated()
+            
+            # Estimate memory of adapter layers
+            adapter_memory = sum(param.nelement() * param.element_size() for name, param in model.named_parameters() if 'adapter' in name)
+            
+            # Estimate memory used by optimizer state
+            optimizer_memory = sum(tensor.nelement() * tensor.element_size() for group in optimizer.param_groups for tensor in group['params'])
+            
+            logs = {
+                "gpu_memory_total_mb": total_memory / (1024 * 1024),
+                "gpu_memory_adapter_mb": adapter_memory / (1024 * 1024),
+                "gpu_memory_optimizer_mb": optimizer_memory / (1024 * 1024),
+                # minibatch memory can be computed during a forward pass, outside of this method
+            }
+            self._trainer.log(logs)
 
 def train(
     training_config: TrainingConfig,
@@ -191,11 +212,12 @@ def train(
 ):
     # setup model
     peft_model = create_load_peft_model(training_config, lora_config, inference=False)
-
+    
+    print(f"\n core,py line 195 dataset_path: {dataset_path}\n")
     if len(dataset_path) == 1:
         # setup data
         instruction_data = InstructionDataset(
-            data_config, dataset_path, training_config.hf_model
+            data_config, dataset_path[0], training_config.hf_model
         )
         instruction_data.process_dataset()
         train_ds = instruction_data.get_dataset("train")
@@ -271,6 +293,7 @@ def train(
         train_dataset=train_ds,
         eval_dataset=test_ds if _do_eval else None,
         neftune_noise_alpha=training_config.neftune_noise_alpha,
+        callbacks=[GPUMemoryLoggerCallback()],
     )
 
     if run_id:
@@ -293,5 +316,5 @@ def train(
     ) as run:
         trainer.train(resume_from_checkpoint=checkpt_path)
         trainer.save_model(
-            os.path.join("checkpoints", f"{run.name}_{dataset_path.split('/')[-1]}")
+            os.path.join("checkpoints", f"{run.name}_{dataset_path[0].split('/')[-1]}")
         )

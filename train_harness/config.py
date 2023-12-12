@@ -14,6 +14,7 @@ Write a response that appropriately completes the request.
 
 def load_from_yaml(path: str | os.PathLike) -> Dict[str, Callable]:
     class_dict = {}
+    print(f"\n path:{path} \n")
     with open(path, "r") as f:
         cfg_dict = yaml.safe_load(f)
     for key, cfg in cfg_dict.items():
@@ -28,6 +29,9 @@ class LoraConfig(LoraConfig_):
     path: InitVar[str] = None
     name: InitVar[str] = "default"
 
+    # run right after initialization, gives the user the option to specify a 
+    # custom configuration path and name. If a path is provided, the method reads
+    # the configuration from this path and updates the instance attributes accordingly.
     def __post_init__(self, path: Optional[str], name: Optional[str]):
         self.task_type = TaskType.CAUSAL_LM
         self.peft_type = PeftType.LORA
@@ -64,11 +68,10 @@ class DataConfig:
 @dataclass
 class TrainingConfig:
     """Note: all training is on one gpu"""
-
-    batch_size: int = 16
+    batch_size: int = 8
     grad_accum_steps: int = 4
     epochs: int = 1
-    steps: int = -1
+    steps: int = 2
     peak_lr: float = 3e-4
     weight_decay: float = 0.0
     gradient_clip_val: float = 1.0
